@@ -111,7 +111,18 @@ $('form-unlock').addEventListener('submit', async function (e) {
       keysCache = data.keys || [];
       renderKeys(keysCache);
     } else {
-      // First use: create empty vault
+      // First use: try to pull the vault from GitHub first, else create empty
+      if (getConfig()) {
+        var pulled = await pullFromGitHubToUnlock(pw, st);
+        if (pulled) {
+          $('master-password').value = '';
+          showScreen('screen-keys');
+          statusMsg(st, '');
+          btn.disabled = false;
+          btn.textContent = 'Desbloquear';
+          return;
+        }
+      }
       masterPassword = pw;
       keysCache = [];
       await saveKeys();
@@ -125,6 +136,31 @@ $('form-unlock').addEventListener('submit', async function (e) {
     btn.disabled = false;
     btn.textContent = 'Desbloquear';
   }
+});
+
+async function pullFromGitHubToUnlock(pw, st) {
+  try {
+    var existing = await readVault();
+    if (!existing) return false;
+    var payload = JSON.parse(existing.content);
+    var plain = await decryptVault(payload, pw);
+    var data = JSON.parse(plain);
+    masterPassword = pw;
+    vaultPayload = payload;
+    keysCache = data.keys || [];
+    saveVaultLocal(payload);
+    return true;
+  } catch (err) {
+    statusMsg(st, 'No se pudo descargar el vault de GitHub', 'error');
+    return false;
+  }
+}
+
+$('btn-reset-local').addEventListener('click', function () {
+  if (!confirm('Esto borra el vault local y la configuracion guardados EN ESTE NAVEGADOR. No borra nada en GitHub. Continuar?')) return;
+  clearVaultLocal();
+  clearConfig();
+  location.reload();
 });
 
 $('btn-lock').addEventListener('click', function () {
