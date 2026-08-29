@@ -1,4 +1,4 @@
-var CACHE = 'skm-pwa-v2';
+var CACHE = 'skm-pwa-v3';
 var ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,9 @@ var ASSETS = [
   './crypto.js',
   './github.js',
   './style.css',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', function (e) {
