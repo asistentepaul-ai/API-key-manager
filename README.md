@@ -16,7 +16,7 @@ https://asistentepaul-ai.github.io/API-key-manager/
 
 - Repo (público): `asistentepaul-ai/API-key-manager`
 - Rama: `main` · Carpeta: `/ (root)` · GitHub Pages activo
-- Iconos PNG reales y Service Worker (network-first para el shell) listos para instalar en Android.
+- Instalable en Android (iconos PNG + Service Worker).
 
 ## Formato del vault
 
@@ -39,9 +39,6 @@ tiene este formato:
 
 1. Abre en Chrome de Android: `https://asistentepaul-ai.github.io/API-key-manager/`
 2. Toca el menú (⋮) → **"Instalar aplicación"** (o "Añadir a pantalla de inicio").
-   - Si el menú no ofrece instalar, **cierra y reabre la app** una o dos veces (el Service Worker
-     se actualiza en segundo plano) y **borra los datos del sitio** (⋮ → Ajustes del sitio →
-     borrar datos) para forzar la versión nueva.
 3. La primera vez, ve a **Sincronizar** y configura:
    - Owner: `asistentepaul-ai`
    - Repositorio: `API-key-manager`
@@ -54,13 +51,6 @@ tiene este formato:
 > **Escribir** (crear/editar keys) **siempre** requiere el token. Para *ver y copiar* tus keys ya
 > guardadas, basta con la contraseña maestra.
 > Si usas repo privado, el token hace falta también para leer.
-
-## Problemas al desbloquear
-
-Si el móvil muestra "Contraseña incorrecta o vault corrupto": pulsa en pantalla de desbloqueo
-**"¿Problemas para desbloquear? Reiniciar datos de este navegador"** (borra el vault local y la
-configuración del *navegador*, **nunca** toca GitHub), recarga y vuelve a poner la contraseña
-maestra real. El desbloqueo intenta auto-descargar el vault de GitHub si el local falla.
 
 ## Configuración para desarrollo / re-despliegue
 
