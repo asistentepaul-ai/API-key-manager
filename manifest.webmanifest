@@ -1,0 +1,23 @@
+{
+  "name": "Secure Key Manager",
+  "short_name": "KeyManager",
+  "description": "Gestiona tus API keys de forma segura",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f14",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%231a1a2e'/%3E%3Cpath d='M256 128c-53 0-96 43-96 96 0 28 12 53 31 71l-31 93 48 16 16-48 32 8 16-48 32 8 16-48 32 8 16-48-48-16c19-18 31-43 31-71 0-53-43-96-96-96zm0 48c26 0 48 22 48 48s-22 48-48 48-48-22-48-48 22-48 48-48z' fill='%2300e5ff'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%231a1a2e'/%3E%3Cpath d='M96 48c-35 0-64 29-64 64 0 19 8 36 21 48l-21 62 32 10 11-32 21 5 11-32 21 5 11-32 21 5 11-32-32-10c13-12 21-29 21-48 0-35-29-64-64-64zm0 32c18 0 32 14 32 32s-14 32-32 32-32-14-32-32 14-32 32-32z' fill='%2300e5ff'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="description" content="Secure Key Manager - Gestiona tus API keys de forma segura">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231a1a2e'/%3E%3Cpath d='M16 8c-3.3 0-6 2.7-6 6 0 1.8.8 3.3 2 4.4l-2 5.8 3 1 1-3 2 .5 1-3 2 .5 1-3 2 .5 1-3-3-1c1.2-1.1 2-2.6 2-4.4 0-3.3-2.7-6-6-6zm0 3c1.7 0 3 1.3 3 3s-1.3 3-3 3-3-1.3-3-3 1.3-3 3-3z' fill='%2300e5ff'/%3E%3C/svg%3E" type="image/svg+xml">
+  <title>Secure Key Manager</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<div class="container" id="app">
+
+  <!-- UNLOCK -->
+  <div class="screen active" id="screen-unlock">
+    <h1>Secure Key Manager</h1>
+    <p class="subtitle">Introduce la contraseña maestra para desbloquear tu vault de API keys.</p>
+    <form id="form-unlock">
+      <label for="master-password">Contraseña maestra</label>
+      <input type="password" id="master-password" placeholder="••••••••" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-accent" id="btn-unlock">Desbloquear</button>
+      <div class="status" id="unlock-status"></div>
+    </form>
+  </div>
+
+  <!-- KEYS LIST -->
+  <div class="screen" id="screen-keys">
+    <div class="header">
+      <h1>API Keys</h1>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-outline" id="btn-sync">Sincronizar</button>
+        <button class="btn btn-sm btn-danger" id="btn-lock">Bloquear</button>
+      </div>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="search-keys" placeholder="Buscar claves..." autocomplete="off">
+    </div>
+    <ul class="key-list" id="key-list"></ul>
+    <div style="margin-top:12px">
+      <button class="btn btn-primary" id="btn-add-key">+ Añadir clave</button>
+    </div>
+    <div class="status" id="keys-status"></div>
+  </div>
+
+  <!-- VIEW KEY -->
+  <div class="screen" id="screen-view">
+    <div class="header">
+      <button class="btn btn-sm btn-outline" id="btn-view-back">← Volver</button>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-outline" id="btn-view-edit">Editar</button>
+        <button class="btn btn-sm btn-danger" id="btn-view-delete">Eliminar</button>
+      </div>
+    </div>
+    <h2 id="view-name"></h2>
+    <p class="subtitle" id="view-notes"></p>
+    <label>Valor</label>
+    <div class="value-box" id="view-value"></div>
+    <div class="btn-group">
+      <button class="btn btn-outline" id="btn-view-show">Mostrar valor</button>
+      <button class="btn btn-accent" id="btn-view-copy" disabled>Copiar</button>
+    </div>
+    <div class="status" id="view-status"></div>
+  </div>
+
+  <!-- ADD / EDIT KEY -->
+  <div class="screen" id="screen-form">
+    <div class="header">
+      <button class="btn btn-sm btn-outline" id="btn-form-cancel">← Cancelar</button>
+      <h2 id="form-title">Añadir clave</h2>
+    </div>
+    <form id="form-key">
+      <label for="form-key-name">Nombre</label>
+      <input type="text" id="form-key-name" placeholder="ej: OPENAI_API_KEY" autocomplete="off" required>
+      <label for="form-key-value">Valor</label>
+      <input type="text" id="form-key-value" placeholder="sk-..." autocomplete="off" required>
+      <label for="form-key-notes">Notas (opcional)</label>
+      <textarea id="form-key-notes" placeholder="Descripción, límites, etc."></textarea>
+      <button type="submit" class="btn btn-primary" id="btn-form-save">Guardar</button>
+      <div class="status" id="form-status"></div>
+    </form>
+  </div>
+
+  <!-- SYNC (GitHub) -->
+  <div class="screen" id="screen-sync">
+    <div class="header">
+      <button class="btn btn-sm btn-outline" id="btn-sync-back">← Volver</button>
+      <h2>Sincronizar con GitHub</h2>
+    </div>
+    <form id="form-sync">
+      <label for="sync-owner">Owner (usuario u organización)</label>
+      <input type="text" id="sync-owner" placeholder="ej: tu-usuario" autocomplete="off" required>
+      <label for="sync-repo">Repositorio</label>
+      <input type="text" id="sync-repo" placeholder="ej: mi-repo" autocomplete="off" required>
+      <label for="sync-path">Ruta del archivo</label>
+      <input type="text" id="sync-path" placeholder="vault.enc" autocomplete="off" required>
+      <label for="sync-branch">Rama</label>
+      <input type="text" id="sync-branch" placeholder="main" autocomplete="off" required>
+      <label for="sync-token">Personal Access Token (necesario para escribir)</label>
+      <input type="password" id="sync-token" placeholder="github_pat_..." autocomplete="off">
+      <button type="submit" class="btn btn-primary">Guardar configuración</button>
+    </form>
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-accent" id="btn-sync-push">Subir vault a GitHub</button>
+      <button class="btn btn-outline" id="btn-sync-pull">Descargar vault desde GitHub</button>
+    </div>
+    <button class="btn btn-danger" id="btn-sync-clear" style="margin-top:8px">Eliminar configuración</button>
+    <div class="status" id="sync-status"></div>
+    <div class="status" id="sync-result"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="./crypto.js"></script>
+<script src="./github.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
