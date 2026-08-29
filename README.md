@@ -1,10 +1,22 @@
 # Secure Key Manager — PWA
 
-Aplicación web progresiva (PWA) 100% cliente-side para gestionar API keys de forma segura.
+Aplicación web progresiva (PWA) **100% cliente-side** para gestionar API keys de forma segura.
 El vault se cifra con AES-256-GCM (PBKDF2-SHA256) directamente en el navegador y se sincroniza
 con un repositorio de GitHub mediante la REST Contents API.
 
 No necesita backend, servidor ni compilación. Funciona como archivos estáticos en GitHub Pages.
+
+## Estado actual
+
+🚀 **Desplegada y funcionando.** URL pública:
+
+```
+https://asistentepaul-ai.github.io/API-key-manager/
+```
+
+- Repo (público): `asistentepaul-ai/API-key-manager`
+- Rama: `main` · Carpeta: `/ (root)` · GitHub Pages activo
+- Iconos PNG reales y Service Worker (network-first para el shell) listos para instalar en Android.
 
 ## Formato del vault
 
@@ -23,65 +35,73 @@ tiene este formato:
 - AES-256-GCM con nonce de 12 bytes, tag de 16 bytes añadido al final del ciphertext, sin AAD
 - El texto plano es un JSON: `{"keys": [{"id": "...", "name": "...", "value": "...", "notes": "...", "created_at": "...", "updated_at": "..."}]}`
 
-## Setup para GitHub Pages
+## Usar desde el móvil (Android)
 
-### 1. Crear un repositorio privado en GitHub
+1. Abre en Chrome de Android: `https://asistentepaul-ai.github.io/API-key-manager/`
+2. Toca el menú (⋮) → **"Instalar aplicación"** (o "Añadir a pantalla de inicio").
+   - Si el menú no ofrece instalar, **cierra y reabre la app** una o dos veces (el Service Worker
+     se actualiza en segundo plano) y **borra los datos del sitio** (⋮ → Ajustes del sitio →
+     borrar datos) para forzar la versión nueva.
+3. La primera vez, ve a **Sincronizar** y configura:
+   - Owner: `asistentepaul-ai`
+   - Repositorio: `API-key-manager`
+   - Ruta: `vault.enc`
+   - Rama: `main`
+   - Token: tu **fine-grained PAT** con permiso Contents **Read and write** sobre ese repo
+4. Pulsa "Guardar configuración" y luego "Descargar vault desde GitHub" (o "Subir vault a GitHub").
 
-Crea un repositorio **PRIVATE** en GitHub (por ejemplo, `mi-vault`).
-No añadas README, .gitignore ni licencia — debe estar vacío.
+> ⚠️ **Repo público** = la **lectura** del vault no necesita token (60 requests/hora anónimas).
+> **Escribir** (crear/editar keys) **siempre** requiere el token. Para *ver y copiar* tus keys ya
+> guardadas, basta con la contraseña maestra.
+> Si usas repo privado, el token hace falta también para leer.
+
+## Problemas al desbloquear
+
+Si el móvil muestra "Contraseña incorrecta o vault corrupto": pulsa en pantalla de desbloqueo
+**"¿Problemas para desbloquear? Reiniciar datos de este navegador"** (borra el vault local y la
+configuración del *navegador*, **nunca** toca GitHub), recarga y vuelve a poner la contraseña
+maestra real. El desbloqueo intenta auto-descargar el vault de GitHub si el local falla.
+
+## Configuración para desarrollo / re-despliegue
+
+Normalmente no hace falta: la app ya está publicada. Si quieres replicarla en otro repo:
+
+### 1. Crear un repositorio en GitHub
+
+Publico o privado (ver nota de seguridad en el README raíz).
 
 ### 2. Crear un Personal Access Token (fine-grained)
 
-1. Ve a GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-2. Haz clic en "Generate new token"
-3. Dale un nombre (ej: "secure-key-manager")
-4. Repository access: "Only select repositories" → selecciona el repo que creaste
-5. Permissions → Contents: **Read and write**
-6. Generate token y **cópialo inmediatamente** (no se vuelve a mostrar)
+1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → "Generate new token"
+2. Nombre (ej: `secure-key-manager`), Repository access: "Only select repositories" → el repo
+3. Permissions → Contents: **Read and write**
+4. Generate token y **cópialo inmediatamente** (no se vuelve a mostrar)
 
-### 3. Configurar git y subir la PWA
+### 3. Subir la PWA (una sola vez)
 
 ```bash
-# Desde la carpeta pwa/ (ya inicializado con git init y commit inicial)
-git remote add origin https://github.com/TU-USUARIO/mi-vault.git
+cd pwa
+git remote add origin https://github.com/TU-USUARIO/TU-REPO.git
 git push -u origin main
 ```
 
 ### 4. Activar GitHub Pages
 
-1. Ve a tu repo en GitHub → Settings → Pages
-2. Source: **Deploy from a branch**
-3. Branch: `main`, folder: `/ (root)`
-4. Guarda. En unos segundos tu PWA estará disponible en:
-   `https://TU-USUARIO.github.io/mi-vault/`
+Repo → Settings → Pages → Source: **Deploy from a branch** → branch `main`, folder `/ (root)` → Save.
+La PWA queda en `https://TU-USUARIO.github.io/TU-REPO/`.
 
-### 5. Abrir en Android Chrome e instalar
+### 5. Sincronización del vault desde la app
 
-1. Abre Chrome en Android y navega a la URL de GitHub Pages
-2. Toca el menú (tres puntos) → "Instalar aplicación" (o "Add to Home screen")
-3. La PWA se abrirá en modo standalone sin la barra del navegador
+En "Sincronizar": **Owner**, **Repo**, **Ruta** (`vault.enc`), **Rama** (`main`) y **Token**.
+"Subir vault a GitHub" hace push del vault cifrado; "Descargar vault desde GitHub" hace pull.
 
-## Sincronización del vault
-
-Desde la app, ve a "Sincronizar" y configura:
-
-- **Owner**: tu usuario de GitHub
-- **Repositorio**: el nombre del repo (ej: `mi-vault`)
-- **Ruta**: `vault.enc` (por defecto)
-- **Rama**: `main`
-- **Token**: el Personal Access Token que creaste
-
-Usa "Subir vault a GitHub" para hacer push del vault cifrado.
-Usa "Descargar vault desde GitHub" para hacer pull.
-
-El token y la configuración se guardan en localStorage. La contraseña maestra **nunca** se persiste.
+El token y la configuración se guardan en `localStorage`. La contraseña maestra **nunca** se persiste.
 
 ## Nota sobre repos públicos
 
-Si usas un repositorio **público**, la lectura del vault no necesita token (60 requests/hora límite
-de GitHub sin autenticar). La escritura siempre necesita el token. El vault está cifrado, pero
-cualquiera puede descargarlo y intentar ataques offline contra la contraseña maestra.
-Usa siempre un repositorio **privado** para mayor seguridad.
+Si usas un repositorio **público**, la lectura del vault no necesita token; la escritura siempre sí.
+El vault está cifrado, pero cualquiera puede descargarlo e intentar ataques offline contra la
+contraseña maestra. **Usa una contraseña maestra fuerte** (frase de 4+ palabras al azar).
 
 ## Compatibilidad
 
