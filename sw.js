@@ -1,4 +1,4 @@
-var CACHE = 'skm-pwa-v1';
+var CACHE = 'skm-pwa-v2';
 var ASSETS = [
   './',
   './index.html',
@@ -28,6 +28,26 @@ self.addEventListener('activate', function (e) {
 });
 
 self.addEventListener('fetch', function (e) {
+  var url = new URL(e.request.url);
+  var isShell =
+    url.pathname.endsWith('index.html') ||
+    url.pathname.endsWith('app.js') ||
+    url.pathname.endsWith('crypto.js') ||
+    url.pathname.endsWith('github.js') ||
+    url.pathname.endsWith('style.css') ||
+    url.pathname.endsWith('sw.js');
+  if (isShell) {
+    e.respondWith(
+      fetch(e.request).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        return res;
+      }).catch(function () {
+        return caches.match(e.request);
+      })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function (r) { return r || fetch(e.request); })
   );
