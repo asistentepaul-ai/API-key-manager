@@ -27,6 +27,10 @@ body {
   padding: 16px;
 }
 
+@media (max-height: 700px) {
+  body { align-items: flex-start; }
+}
+
 /* === Containers === */
 .container {
   width: 100%;
@@ -108,7 +112,7 @@ input::placeholder, textarea::placeholder { color: var(--text2); opacity: .6; }
   font-size: 0.9rem;
   opacity: .5;
 }
-.key-list { list-style: none; max-height: 400px; overflow-y: auto; }
+.key-list { list-style: none; max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
 .key-item {
   display: flex;
   align-items: center;

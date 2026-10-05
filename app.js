@@ -6,6 +6,7 @@ var keysCache = [];
 var currentKeyId = null;
 var editingKeyId = null;
 var vaultPayload = null;    // cached encrypted payload {salt, nonce, ciphertext}
+var deletedCache = {};      // tombstones: id -> ISO timestamp de borrado (para propagar eliminaciones)
 
 /* ===== DOM helpers ===== */
 var $ = function (id) { return document.getElementById(id); };
@@ -65,15 +66,25 @@ async function loadKeys() {
     var plain = await decryptVault(payload, masterPassword);
     var data = JSON.parse(plain);
     keysCache = data.keys || [];
-    renderKeys(keysCache);
+    deletedCache = data.deleted || {};
+    renderKeys(visibleKeys());
   } catch (e) {
     showError('Error al descifrar el vault: contraseña incorrecta o datos corruptos');
     lock();
   }
 }
 
+/* Devuelve las claves NO borradas (no están en tombstones). */
+function visibleKeys() {
+  var out = [];
+  for (var i = 0; i < keysCache.length; i++) {
+    if (!deletedCache[keysCache[i].id]) out.push(keysCache[i]);
+  }
+  return out;
+}
+
 async function saveKeys() {
-  var plaintext = JSON.stringify({ keys: keysCache });
+  var plaintext = JSON.stringify({ keys: keysCache, deleted: deletedCache });
   var payload = await encryptVault(plaintext, masterPassword);
   vaultPayload = payload;
   saveVaultLocal(payload);
@@ -184,9 +195,11 @@ async function pullFromGitHubToUnlock(pw, st) {
 }
 
 /* Trae lo último de GitHub tras desbloquear, si hay config. No bloquea.
-   MEZCLA por id (no sobrescribe): conserva claves locales que no estén en remoto
-   y, si una está en ambos, gana la de updated_at más reciente. Si el merge
-   cambia algo, re-cifra y sube el resultado. */
+   MEZCLA por id Y por tombstones (borrados):
+   - claves: une por id; si está en ambos, gana la de updated_at más reciente.
+   - borrados: une los registros de borrado; una clave cuyo borrado es posterior
+     a su última edición se elimina (la eliminación se propaga).
+   Si el merge cambia algo, re-cifra y sube el resultado. */
 async function autoPullFromGitHub() {
   var config = getConfig();
   if (!config) return;
@@ -196,27 +209,39 @@ async function autoPullFromGitHub() {
     var remote = JSON.parse(existing.content);
     var local = vaultPayload || loadVaultLocal();
     if (local && remote.ciphertext === local.ciphertext && remote.nonce === local.nonce) return;
-    var plain = await decryptVault(remote, masterPassword);
-    var remoteKeys = (JSON.parse(plain).keys) || [];
+    var rdata = JSON.parse(await decryptVault(remote, masterPassword));
+    var remoteKeys = rdata.keys || [];
+    var remoteDel = rdata.deleted || {};
+
+    // 1) unir tombstones (gana el timestamp más reciente)
+    var mergedDel = {};
+    var id;
+    for (id in deletedCache) mergedDel[id] = deletedCache[id];
+    for (id in remoteDel) {
+      if (!mergedDel[id] || remoteDel[id] > mergedDel[id]) mergedDel[id] = remoteDel[id];
+    }
+
+    // 2) unir claves por id (gana updated_at más reciente)
     var byId = {};
     var i;
-    for (i = 0; i < remoteKeys.length; i++) byId[remoteKeys[i].id] = remoteKeys[i];
-    var merged = [];
-    for (i = 0; i < keysCache.length; i++) {
-      var lk = keysCache[i];
-      var rk = byId[lk.id];
-      if (!rk) {
-        merged.push(lk);
-      } else {
-        var lt = lk.updated_at || '';
-        var rt = rk.updated_at || '';
-        merged.push(rt > lt ? rk : lk);
-        delete byId[lk.id];
-      }
+    for (i = 0; i < keysCache.length; i++) byId[keysCache[i].id] = keysCache[i];
+    for (i = 0; i < remoteKeys.length; i++) {
+      var rk = remoteKeys[i];
+      if (!byId[rk.id] || (rk.updated_at || '') > (byId[rk.id].updated_at || '')) byId[rk.id] = rk;
     }
-    for (var id in byId) merged.push(byId[id]);
-    var changed = JSON.stringify(merged) !== JSON.stringify(keysCache);
+
+    // 3) aplicar borrados: cae la clave si su borrado es >= su última edición
+    var merged = [];
+    for (id in byId) {
+      var k = byId[id];
+      if (mergedDel[id] && mergedDel[id] >= (k.updated_at || '')) continue;
+      merged.push(k);
+    }
+
+    var changed = JSON.stringify(merged) !== JSON.stringify(keysCache) ||
+                  JSON.stringify(mergedDel) !== JSON.stringify(deletedCache);
     keysCache = merged;
+    deletedCache = mergedDel;
     vaultPayload = remote;
     if (changed) {
       await saveKeys();   // cifra, guarda local y sube el merge a GitHub
@@ -224,10 +249,29 @@ async function autoPullFromGitHub() {
     } else {
       saveVaultLocal(remote);
     }
-    renderKeys(keysCache);
+    renderKeys(visibleKeys());
   } catch (err) {
     // Silencioso: si falla (p. ej. el remoto usa otra contraseña), seguimos con lo local
   }
+}
+
+/* Marca una clave como borrada (tombstone con fecha) y la quita de la caché. */
+async function markDeleted(id) {
+  deletedCache[id] = new Date().toISOString();
+  var nk = [];
+  for (var i = 0; i < keysCache.length; i++) {
+    if (keysCache[i].id !== id) nk.push(keysCache[i]);
+  }
+  keysCache = nk;
+}
+
+/* Borra una clave desde la lista (con confirmación) y propaga el borrado. */
+async function deleteKey(id) {
+  if (!confirm('Eliminar esta clave definitivamente?')) return;
+  await markDeleted(id);
+  await saveKeys();
+  toast('Clave eliminada');
+  renderKeys(visibleKeys());
 }
 
 $('btn-reset-local').addEventListener('click', function () {
@@ -264,9 +308,10 @@ function renderKeys(keys) {
 
 $('search-keys').addEventListener('input', function (e) {
   var q = e.target.value.toLowerCase();
+  var all = visibleKeys();
   var filtered = [];
-  for (var i = 0; i < keysCache.length; i++) {
-    var k = keysCache[i];
+  for (var i = 0; i < all.length; i++) {
+    var k = all[i];
     if (k.name.toLowerCase().indexOf(q) !== -1 ||
         (k.notes && k.notes.toLowerCase().indexOf(q) !== -1)) {
       filtered.push(k);
@@ -307,7 +352,7 @@ async function viewKey(id) {
   $('btn-view-copy').disabled = true;
   var found = null;
   for (var i = 0; i < keysCache.length; i++) {
-    if (keysCache[i].id === id) { found = keysCache[i]; break; }
+    if (keysCache[i].id === id && !deletedCache[id]) { found = keysCache[i]; break; }
   }
   if (!found) {
     statusMsg(st, 'Clave no encontrada', 'error');
@@ -371,13 +416,10 @@ $('btn-view-edit').addEventListener('click', function () {
 
 $('btn-view-delete').addEventListener('click', async function () {
   if (!confirm('Eliminar esta clave definitivamente?')) return;
-  var newKeys = [];
-  for (var i = 0; i < keysCache.length; i++) {
-    if (keysCache[i].id !== currentKeyId) newKeys.push(keysCache[i]);
-  }
-  keysCache = newKeys;
+  await markDeleted(currentKeyId);
   await saveKeys();
   toast('Clave eliminada');
+  renderKeys(visibleKeys());
   showScreen('screen-keys');
 });
 
