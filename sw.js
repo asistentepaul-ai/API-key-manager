@@ -1,4 +1,4 @@
-var CACHE = 'skm-pwa-v3';
+var CACHE = 'skm-pwa-v4';
 var ASSETS = [
   './',
   './index.html',

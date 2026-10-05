@@ -77,6 +77,27 @@ async function saveKeys() {
   var payload = await encryptVault(plaintext, masterPassword);
   vaultPayload = payload;
   saveVaultLocal(payload);
+  // Auto-sync a GitHub si está configurado (no bloquea la UI; informa por toast)
+  await autoPushVault();
+}
+
+/* Sube el vault a GitHub automáticamente. Silencioso si no hay config.
+   Devuelve true si subió, false si no había config o falló. */
+async function autoPushVault() {
+  var config = getConfig();
+  if (!config || !config.token) return false;
+  try {
+    var payload = vaultPayload || loadVaultLocal();
+    if (!payload) return false;
+    var existing = await readVault();
+    var sha = existing ? existing.sha : null;
+    await writeVault(JSON.stringify(payload), sha);
+    toast('✅ Sincronizado con GitHub');
+    return true;
+  } catch (err) {
+    toast('⚠️ Guardado en local, pero no se pudo subir a GitHub: ' + err.message);
+    return false;
+  }
 }
 
 /* ===== Lock / Unlock ===== */
@@ -110,6 +131,12 @@ $('form-unlock').addEventListener('submit', async function (e) {
       vaultPayload = payload;
       keysCache = data.keys || [];
       renderKeys(keysCache);
+      showScreen('screen-keys');
+      statusMsg(st, '');
+      // Si hay config, traer lo último de GitHub en segundo plano (comparte entre dispositivos)
+      autoPullFromGitHub();
+      $('master-password').value = '';
+      return;
     } else {
       // First use: try to pull the vault from GitHub first, else create empty
       if (getConfig()) {
@@ -153,6 +180,53 @@ async function pullFromGitHubToUnlock(pw, st) {
   } catch (err) {
     statusMsg(st, 'No se pudo descargar el vault de GitHub', 'error');
     return false;
+  }
+}
+
+/* Trae lo último de GitHub tras desbloquear, si hay config. No bloquea.
+   MEZCLA por id (no sobrescribe): conserva claves locales que no estén en remoto
+   y, si una está en ambos, gana la de updated_at más reciente. Si el merge
+   cambia algo, re-cifra y sube el resultado. */
+async function autoPullFromGitHub() {
+  var config = getConfig();
+  if (!config) return;
+  try {
+    var existing = await readVault();
+    if (!existing) return;
+    var remote = JSON.parse(existing.content);
+    var local = vaultPayload || loadVaultLocal();
+    if (local && remote.ciphertext === local.ciphertext && remote.nonce === local.nonce) return;
+    var plain = await decryptVault(remote, masterPassword);
+    var remoteKeys = (JSON.parse(plain).keys) || [];
+    var byId = {};
+    var i;
+    for (i = 0; i < remoteKeys.length; i++) byId[remoteKeys[i].id] = remoteKeys[i];
+    var merged = [];
+    for (i = 0; i < keysCache.length; i++) {
+      var lk = keysCache[i];
+      var rk = byId[lk.id];
+      if (!rk) {
+        merged.push(lk);
+      } else {
+        var lt = lk.updated_at || '';
+        var rt = rk.updated_at || '';
+        merged.push(rt > lt ? rk : lk);
+        delete byId[lk.id];
+      }
+    }
+    for (var id in byId) merged.push(byId[id]);
+    var changed = JSON.stringify(merged) !== JSON.stringify(keysCache);
+    keysCache = merged;
+    vaultPayload = remote;
+    if (changed) {
+      await saveKeys();   // cifra, guarda local y sube el merge a GitHub
+      toast('🔄 Claves sincronizadas entre dispositivos');
+    } else {
+      saveVaultLocal(remote);
+    }
+    renderKeys(keysCache);
+  } catch (err) {
+    // Silencioso: si falla (p. ej. el remoto usa otra contraseña), seguimos con lo local
   }
 }
 
